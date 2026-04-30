@@ -430,29 +430,8 @@
 </head>
 <body>
 
-<!-- ── GITHUB CONFIG SCREEN ── -->
-<div id="configScreen">
-  <div class="config-box">
-    <div class="config-title">🔧 Connect to GitHub Database</div>
-    <div class="config-sub">
-      Enter your GitHub credentials to enable real-time cloud storage.<br>
-      This only needs to be done once per device.
-    </div>
-    <label class="config-label">GitHub Username</label>
-    <input id="cfgOwner" class="config-inp" placeholder="your-github-username" autocomplete="off">
-    <label class="config-label">Database Repository Name</label>
-    <input id="cfgRepo" class="config-inp" placeholder="pash-pema-db" autocomplete="off">
-    <label class="config-label">Personal Access Token</label>
-    <input id="cfgToken" class="config-inp" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-    <div id="cfgError" class="config-err"></div>
-    <button class="config-btn" onclick="saveConfig()">Connect & Continue →</button>
-    <div class="config-note">
-      ℹ️ Token needs <strong>repo</strong> scope only.<br>
-      <a href="https://github.com/settings/tokens/new" target="_blank">Generate token on GitHub →</a><br>
-      Your credentials are saved only in this browser (localStorage).
-    </div>
-  </div>
-</div>
+<!-- config screen removed — credentials hardcoded -->
+<div id="configScreen" style="display:none;"></div>
 
 <!-- ── LOADING OVERLAY ── -->
 <div id="loadingOverlay">
@@ -1578,12 +1557,26 @@ function exportToExcel(){
   toast(`Exported ${rows.length} records to Excel`);
 }
 
-// ── BOOT ──
+// ── BOOT ── (hardcoded config — no setup screen needed)
 (function(){
-  if(loadConfig()){
-    document.getElementById('configScreen').style.display='none';
+  GH.repo  = 'pash-pema-db';
+  GH.token = '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';
+  // Auto-detect owner from token, then init
+  fetch('https://api.github.com/user', {
+    headers: { 'Authorization': 'token ' + GH.token, 'Accept': 'application/vnd.github.v3+json' }
+  })
+  .then(r => r.json())
+  .then(d => {
+    GH.owner = d.login;
+    document.getElementById('configScreen').style.display = 'none';
     initDB();
-  }
+  })
+  .catch(() => {
+    // Fallback: try without owner detection (owner will fail gracefully in initDB)
+    GH.owner = '';
+    document.getElementById('configScreen').style.display = 'none';
+    initDB();
+  });
 })();
 </script>
 </body>
