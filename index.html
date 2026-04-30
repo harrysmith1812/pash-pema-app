@@ -791,50 +791,46 @@ let syncQueue = {};
 let syncTimer = null;
 
 // ── INIT DB ──
+// Bin ID is hardcoded — every device always uses the same database
 async function initDB() {
   showLoading('Connecting to database…');
   try {
-    // Check localStorage for saved bin ID
-    const savedId = localStorage.getItem('jb_binId');
-    if (savedId) JB.binId = savedId;
+    JB.binId = '69f3583536566621a80cd1cd'; // hardcoded — shared across all devices
 
-    if (JB.binId) {
-      // Try to read existing bin
-      showLoading('Loading data…');
+    showLoading('Loading data…');
+    let data;
+    try {
+      data = await JB.readBin();
+    } catch(e) {
+      // If main bin fails, try fallback bin
+      JB.binId = '69f32f3e856a6821898dc0c8';
+      data = await JB.readBin();
+    }
+
+    // Merge with users bin if users missing
+    if (!data.users || Object.keys(data.users).length === 0) {
       try {
-        const data = await JB.readBin();
-        dbCache.users   = data.users   || { admin: { password:'admin123', role:'admin' } };
-        dbCache.samples = data.samples || {};
-        dbCache.meta    = data.meta    || { sampleCounter: 0 };
+        const savedBinId = JB.binId;
+        JB.binId = '69f32decaaba88219755c419';
+        const userData = await JB.readBin();
+        data.users = userData.users || userData || { admin: { password:'admin123', role:'admin' } };
+        JB.binId = savedBinId;
       } catch(e) {
-        // Bin ID invalid, create fresh
-        JB.binId = null;
-        localStorage.removeItem('jb_binId');
+        data.users = { admin: { password:'admin123', role:'admin' } };
       }
     }
 
-    if (!JB.binId) {
-      // Create a brand new single bin with all default data
-      showLoading('Setting up database for first time…');
-      const defaultData = {
-        users:   { admin: { password:'admin123', role:'admin' } },
-        samples: {},
-        meta:    { sampleCounter: 0 },
-      };
-      JB.binId = await JB.createBin(defaultData);
-      localStorage.setItem('jb_binId', JB.binId);
-      dbCache.users   = defaultData.users;
-      dbCache.samples = defaultData.samples;
-      dbCache.meta    = defaultData.meta;
-    }
+    dbCache.users   = data.users   || { admin: { password:'admin123', role:'admin' } };
+    dbCache.samples = data.samples || {};
+    dbCache.meta    = data.meta    || { sampleCounter: 0 };
 
     hideLoading();
     setSyncStatus('ok', 'Synced');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('syncStatus').style.display = 'flex';
 
-    // Auto-refresh every 30s
-    setInterval(refreshFromDB, 30000);
+    // Auto-refresh every 15s for real-time sync across devices
+    setInterval(refreshFromDB, 15000);
 
   } catch(e) {
     hideLoading();
@@ -867,7 +863,8 @@ async function flushSave() {
   document.getElementById('syncBar').className = 'syncing';
   syncQueue = {};
   try {
-    // Write entire DB as one object
+    // Always write to the hardcoded shared bin
+    JB.binId = '69f3583536566621a80cd1cd';
     await JB.writeBin({ users: dbCache.users, samples: dbCache.samples, meta: dbCache.meta });
     setSyncStatus('ok', 'Synced ' + new Date().toLocaleTimeString());
     document.getElementById('syncBar').className = '';
@@ -881,6 +878,7 @@ async function flushSave() {
 async function refreshFromDB() {
   if (Object.keys(syncQueue).length > 0) return;
   try {
+    JB.binId = '69f3583536566621a80cd1cd';
     const data = await JB.readBin();
     dbCache.users   = data.users   || dbCache.users;
     dbCache.samples = data.samples || dbCache.samples;
@@ -1531,6 +1529,9 @@ function exportToExcel(){
 // ── BOOT ──
 (function(){
   document.getElementById('configScreen').style.display = 'none';
+  // Clear any old per-device bin IDs — everyone uses the hardcoded shared bin now
+  localStorage.removeItem('jb_binId');
+  localStorage.removeItem('jb_binIds');
   initDB();
 })();
 </script>
