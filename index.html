@@ -496,16 +496,16 @@
     <div class="card">
       <div class="card-title">🧪 Sample Information</div>
       <div class="grid2" style="margin-bottom:18px;">
-        <div class="field"><label>Sample / Patient Name *</label><input id="sampleName" class="inp" placeholder="e.g. John Doe – Blood CBC"></div>
+        <div class="field"><label>Sample / Sample Name *</label><input id="sampleName" class="inp" placeholder="e.g. Shawl or Scarf"></div>
         <div class="field"><label>Collection Date *</label><input id="date" class="inp" type="date"></div>
       </div>
       <div class="field" style="margin-bottom:18px;">
         <label>Collection Location</label>
-        <input id="sampleLocation" class="inp" placeholder="e.g. Primary Health Centre, Anantnag">
+        <input id="sampleLocation" class="inp" placeholder="e.g. Srinagar, Anantnag">
       </div>
       <div class="field" style="margin-bottom:18px;">
         <label>Sample Details / Test Type</label>
-        <textarea id="sampleDetails" class="inp" placeholder="Describe the sample, tests required, clinical notes…"></textarea>
+        <textarea id="sampleDetails" class="inp" placeholder="Describe the sample, tests required, notes…"></textarea>
       </div>
     </div>
     <div class="card">
@@ -916,12 +916,13 @@ function hideLoading() {
 // ══════════════════════════════════════════════════════
 
 const ALL_STATUSES = [
-  'Sample Sent to Lab', 'Sample Received at Lab', 'Under-Process', 'Completed'
+  'Sample Collected', 'Sample Sent to Lab', 'Sample Received at Lab', 'Under-Process', 'Completed'
 ];
 const RESULT_STATUSES = ['Sample Received at Lab', 'Under-Process', 'Completed'];
 
 function statusBadge(status){
   const map = {
+    'Sample Collected':        'badge-teal',
     'Sample Sent to Lab':     'badge-blue',
     'Sample Received at Lab': 'badge-gold',
     'Under-Process':          'badge-yellow',
@@ -1157,7 +1158,7 @@ async function createSample(){
   const code='PEMA-'+String(counter).padStart(5,'0');
   samples[code]={
     name, date:dt, details, location,
-    status:'Sample Sent to Lab', collectedBy:currentUser,
+    status:'Sample Collected', collectedBy:currentUser,
     result:'', testedBy:'', resultDate:'',
     payAmount:payAmount?parseFloat(payAmount):0,
     payMethod:payMethod||'Not Specified',
@@ -1184,11 +1185,13 @@ function renderTable(){
   const allKeys=Object.keys(samples);
   const keys=allKeys.filter(k=>dateInRange(samples[k].date,'listDateFrom','listDateTo'));
   const completed=keys.filter(k=>samples[k].status==='Completed').length;
+  const collected=keys.filter(k=>samples[k].status==='Sample Collected').length;
   const sent=keys.filter(k=>samples[k].status==='Sample Sent to Lab').length;
   const received=keys.filter(k=>samples[k].status==='Sample Received at Lab').length;
   const inProcess=keys.filter(k=>samples[k].status==='Under-Process').length;
   document.getElementById('listStats').innerHTML=`
     <div class="stat-card"><div class="stat-icon">🧪</div><div><div class="stat-num">${keys.length}</div><div class="stat-label">Total Samples</div></div></div>
+    <div class="stat-card"><div class="stat-icon">🧫</div><div><div class="stat-num">${collected}</div><div class="stat-label">Sample Collected</div></div></div>
     <div class="stat-card"><div class="stat-icon">🚚</div><div><div class="stat-num">${sent}</div><div class="stat-label">Sent to Lab</div></div></div>
     <div class="stat-card"><div class="stat-icon">📥</div><div><div class="stat-num">${received}</div><div class="stat-label">Received at Lab</div></div></div>
     <div class="stat-card"><div class="stat-icon">⚗️</div><div><div class="stat-num">${inProcess}</div><div class="stat-label">Under Process</div></div></div>
