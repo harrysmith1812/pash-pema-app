@@ -2115,13 +2115,17 @@ function verifyURL(code) {
 }
 
 // ── PUBLIC VERIFICATION VIEW ──
-// If URL has ?view=CODE, show a public read-only panel (no login needed)
+// ?view=CODE → Test Report fields only (no payment)
+// ?pay=CODE  → Payment Receipt fields only (no test results)
 (function checkVerifyMode() {
-  const params = new URLSearchParams(window.location.search);
-  const code   = params.get('view');
+  const params  = new URLSearchParams(window.location.search);
+  const viewCode = params.get('view');
+  const payCode  = params.get('pay');
+  const code     = viewCode || payCode;
   if (!code) return;
 
-  // Hide normal app, show verify panel instead
+  const isPayMode = !!payCode; // true = payment receipt scan, false = test report scan
+
   document.addEventListener('DOMContentLoaded', () => {
     document.body.style.background = '#0a1628';
     document.body.innerHTML = `
@@ -2129,7 +2133,7 @@ function verifyURL(code) {
         <div style="width:100%;max-width:520px;">
           <div style="text-align:center;margin-bottom:28px;">
             <div style="font-size:12px;letter-spacing:3px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:8px;">PASH-PEMA LMIS</div>
-            <div style="font-size:22px;font-weight:700;color:#e8edf5;">Document Verification</div>
+            <div style="font-size:22px;font-weight:700;color:#e8edf5;">${isPayMode ? 'Payment Verification' : 'Report Verification'}</div>
             <div style="font-size:13px;color:#6b82a0;margin-top:4px;">Scan verified — fetching record…</div>
           </div>
           <div id="verifyCard" style="background:#132240;border-radius:16px;padding:28px;border:1px solid rgba(0,194,168,.2);">
@@ -2163,8 +2167,8 @@ function verifyURL(code) {
         return;
       }
 
-      const cust    = s.customerId ? customers[s.customerId] : null;
-      const isPaid  = s.payAmount  && parseFloat(s.payAmount) > 0;
+      const cust   = s.customerId ? customers[s.customerId] : null;
+      const isPaid = s.payAmount  && parseFloat(s.payAmount) > 0;
       const statusColor = {
         'Collected':'#f59e0b','Processing':'#3b82f6','Ready':'#10b981',
         'Delivered':'#6b7280','Cancelled':'#ef4444'
@@ -2176,38 +2180,76 @@ function verifyURL(code) {
           <span style="font-size:13px;color:#e8edf5;text-align:right;font-weight:500;">${val}</span>
         </div>` : '';
 
-      card.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-          <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};box-shadow:0 0 8px ${statusColor};"></div>
-          <span style="font-size:11px;letter-spacing:2px;color:${statusColor};font-family:'DM Mono',monospace;">${(s.status||'UNKNOWN').toUpperCase()}</span>
-        </div>
+      if (isPayMode) {
+        // ── PAYMENT RECEIPT VIEW ── only payment details
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${isPaid ? '#00d4a0' : '#f59e0b'};box-shadow:0 0 8px ${isPaid ? '#00d4a0' : '#f59e0b'};"></div>
+            <span style="font-size:11px;letter-spacing:2px;color:${isPaid ? '#00d4a0' : '#f59e0b'};font-family:'DM Mono',monospace;">${isPaid ? 'PAYMENT VERIFIED' : 'PAYMENT PENDING'}</span>
+          </div>
 
-        <div style="font-size:20px;font-weight:700;color:#e8edf5;margin-bottom:4px;">${s.name||'—'}</div>
-        <div style="font-size:12px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:20px;">CODE: ${code}</div>
+          <div style="font-size:20px;font-weight:700;color:#e8edf5;margin-bottom:4px;">${s.name||'—'}</div>
+          <div style="font-size:12px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:20px;">RECEIPT: ${code}</div>
 
-        ${row('Patient / Sample', s.name)}
-        ${cust ? row('Customer', cust.name) : ''}
-        ${row('Collection Date', s.date)}
-        ${row('Location', s.location)}
-        ${row('Collected By', s.collectedBy)}
-        ${row('Tested By', s.testedBy||'Pending')}
-        ${row('Result Date', s.resultDate||'Pending')}
+          ${row('Sample / Patient', s.name)}
+          ${cust ? row('Customer', cust.name) : ''}
+          ${row('Collection Date', s.date)}
 
-        ${isPaid ? `
-        <div style="margin-top:16px;background:rgba(0,194,168,.08);border:1px solid rgba(0,194,168,.2);border-radius:10px;padding:14px;">
-          <div style="font-size:11px;color:#00c2a8;letter-spacing:1px;margin-bottom:8px;">PAYMENT VERIFIED</div>
-          ${row('Amount', 'Rs ' + parseFloat(s.payAmount).toLocaleString('en-IN'))}
-          ${row('Method', s.payMethod)}
-          ${row('Reference', s.payRef||'N/A')}
-        </div>` : `
-        <div style="margin-top:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:14px;font-size:13px;color:#f59e0b;">
-          ⏳ Payment not yet recorded
-        </div>`}
+          ${isPaid ? `
+          <div style="margin-top:16px;background:rgba(0,194,168,.08);border:1px solid rgba(0,194,168,.2);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:#00c2a8;letter-spacing:1px;margin-bottom:10px;font-weight:700;">💳 PAYMENT DETAILS</div>
+            ${row('Amount Paid', 'Rs ' + parseFloat(s.payAmount).toLocaleString('en-IN'))}
+            ${row('Payment Method', s.payMethod)}
+            ${row('Transaction Ref.', s.payRef || 'N/A')}
+            ${row('Collected By', s.collectedBy)}
+            ${row('Payment Date', s.payDate || s.date)}
+          </div>
 
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3a5070;text-align:center;">
-          ✅ This document was issued by PASH-PEMA LMIS &nbsp;·&nbsp; Verified ${new Date().toLocaleString()}
-        </div>
-      `;
+          <div style="margin-top:12px;background:rgba(0,194,168,.15);border-radius:8px;padding:14px 16px;text-align:center;">
+            <div style="font-size:11px;color:#00c2a8;margin-bottom:4px;">TOTAL AMOUNT RECEIVED</div>
+            <div style="font-size:26px;font-weight:700;color:#e8edf5;">Rs ${parseFloat(s.payAmount).toLocaleString('en-IN')}</div>
+          </div>` : `
+          <div style="margin-top:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:14px;font-size:13px;color:#f59e0b;">
+            ⏳ Payment not yet recorded for this sample.
+          </div>`}
+
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3a5070;text-align:center;">
+            ✅ This receipt was issued by PASH-PEMA LMIS &nbsp;·&nbsp; Verified ${new Date().toLocaleString()}
+          </div>
+        `;
+      } else {
+        // ── TEST REPORT VIEW ── only lab/report details, no payment info
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};box-shadow:0 0 8px ${statusColor};"></div>
+            <span style="font-size:11px;letter-spacing:2px;color:${statusColor};font-family:'DM Mono',monospace;">${(s.status||'UNKNOWN').toUpperCase()}</span>
+          </div>
+
+          <div style="font-size:20px;font-weight:700;color:#e8edf5;margin-bottom:4px;">${s.name||'—'}</div>
+          <div style="font-size:12px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:20px;">CODE: ${code}</div>
+
+          ${row('Patient / Sample', s.name)}
+          ${cust ? row('Customer', cust.name) : ''}
+          ${row('Collection Date', s.date)}
+          ${row('Location', s.location)}
+          ${row('Collected By', s.collectedBy)}
+          ${row('Tested By', s.testedBy || 'Pending')}
+          ${row('Result Date', s.resultDate || 'Pending')}
+
+          ${s.result ? `
+          <div style="margin-top:16px;background:rgba(0,194,168,.08);border:1px solid rgba(0,194,168,.2);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:#00c2a8;letter-spacing:1px;margin-bottom:8px;font-weight:700;">🧪 TEST RESULT</div>
+            <div style="font-size:13px;color:#e8edf5;line-height:1.6;">${s.result}</div>
+          </div>` : `
+          <div style="margin-top:16px;background:rgba(100,120,160,.06);border:1px solid rgba(100,120,160,.2);border-radius:10px;padding:14px;font-size:13px;color:#7a8fa8;">
+            🔬 Result not yet entered.
+          </div>`}
+
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3a5070;text-align:center;">
+            ✅ This report was issued by PASH-PEMA LMIS &nbsp;·&nbsp; Verified ${new Date().toLocaleString()}
+          </div>
+        `;
+      }
     });
   });
 })();
@@ -3766,8 +3808,9 @@ async function downloadReceiptPDF(code){
   const customers = JSON.parse(dbGet('customers')||'{}');
   const cust = s.customerId ? customers[s.customerId] : null;
 
-  // Generate QR for verification URL
-  const url   = verifyURL(code);
+  // Generate QR for payment verification URL
+  const base  = window.location.origin + window.location.pathname;
+  const url   = base + '?pay=' + encodeURIComponent(code);
   const qrImg = await generateQRDataURL(url);
 
   const doc = new jsPDF({ unit:'mm', format:'a5' });
