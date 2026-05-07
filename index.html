@@ -1889,9 +1889,28 @@
 
 <script>
 
-const NPOINT_API = 'https://api.npoint.io/a5d3ed8890ee416a72f6';
+// ── JSONBIN.IO CREDENTIALS ──
+const JSONBIN = {
+  // Bin 1: users, customers, counters
+  core: {
+    id:  '69f3583536566621a80cd1cd',
+    key: '$2a$10$jLdaepIatvfsfacSa7OAteF1lWoLSXpfMCo.BaQmVKgStoUbjD55q'  // master key
+  },
+  // Bin 2: samples
+  samples: {
+    id:  '69f32f3e856a6821898dc0c8',
+    key: '$2a$10$UwOQBVeMxbztvTuJvcDt8OQ7QSNSRJ0XI.dpwSGOasf3YYs0ZtbtK'  // PEMA-LIVE
+  },
+  // Bin 3: helpQueries
+  help: {
+    id:  '69f32decaaba88219755c419',
+    key: '$2a$10$/u9Y253Tb6trRJBoaYFisOuW3HTcR6ltaxevSGTuhuyAe.pICEf36'   // PEMA-LMIS
+  }
+};
 
-// ── CENTRAL DATABASE (in-memory, synced to npoint.io) ──
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
+
+// ── CENTRAL DATABASE (in-memory, synced to JSONBin.io) ──
 let DB = {
   users: {},
   customers: {},
@@ -1902,23 +1921,50 @@ let DB = {
 };
 
 let dbReady = false;
-let dbSaveQueue = Promise.resolve();
 
+// Per-bin save queues so writes never race each other
+const dbQueue = { core: Promise.resolve(), samples: Promise.resolve(), help: Promise.resolve() };
+
+// ── READ a bin ──
+async function binGet(bin) {
+  const r = await fetch(`${JSONBIN_BASE}/${JSONBIN[bin].id}/latest`, {
+    headers: { 'X-Master-Key': JSONBIN[bin].key }
+  });
+  if (!r.ok) throw new Error(`binGet(${bin}) failed: ${r.status}`);
+  const j = await r.json();
+  return j.record;           // JSONBin wraps the data in { record: {...} }
+}
+
+// ── WRITE a bin ──
+async function binPut(bin, data) {
+  const r = await fetch(`${JSONBIN_BASE}/${JSONBIN[bin].id}`, {
+    method:  'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': JSONBIN[bin].key
+    },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error(`binPut(${bin}) failed: ${r.status}`);
+}
+
+// ── LOAD all three bins in parallel ──
 async function loadDB() {
   try {
-    const res = await fetch(NPOINT_API);
-    if (!res.ok) throw new Error('Load failed: ' + res.status);
-    const data = await res.json();
-    // Merge with defaults so missing keys don't break anything
-    DB.users            = data.users            || {};
-    DB.customers        = data.customers        || {};
-    DB.samples          = data.samples          || {};
-    DB.customerCounter  = data.customerCounter  || 0;
-    DB.sampleCounter    = data.sampleCounter    || 0;
-    DB.helpQueries      = data.helpQueries      || [];
+    const [core, sampleData, helpData] = await Promise.all([
+      binGet('core'),
+      binGet('samples'),
+      binGet('help')
+    ]);
+    DB.users           = core.users           || {};
+    DB.customers       = core.customers       || {};
+    DB.customerCounter = core.customerCounter || 0;
+    DB.sampleCounter   = core.sampleCounter   || 0;
+    DB.samples         = sampleData.samples   || {};
+    DB.helpQueries     = helpData.helpQueries || [];
   } catch (err) {
     console.error('loadDB error:', err);
-    // If npoint is unreachable, start with empty DB
+    toast('⚠️ Could not load database. Check your connection.', 'err');
   }
   // Ensure admin always exists
   if (!DB.users.admin || DB.users.admin.role !== 'admin') {
@@ -1928,20 +1974,54 @@ async function loadDB() {
   hideLoader();
 }
 
-function saveDB() {
-  dbSaveQueue = dbSaveQueue.then(async () => {
+// ── SAVE helpers — each writes only its own bin ──
+function saveCore() {
+  dbQueue.core = dbQueue.core.then(async () => {
     try {
-      await fetch(NPOINT_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(DB)
+      await binPut('core', {
+        users:           DB.users,
+        customers:       DB.customers,
+        customerCounter: DB.customerCounter,
+        sampleCounter:   DB.sampleCounter
       });
     } catch (err) {
-      console.error('saveDB error:', err);
-      toast('⚠️ Could not sync to server. Data may not be saved.', 'err');
+      console.error('saveCore error:', err);
+      toast('⚠️ Could not sync to server.', 'err');
     }
   });
-  return dbSaveQueue;
+  return dbQueue.core;
+}
+
+function saveSamples() {
+  dbQueue.samples = dbQueue.samples.then(async () => {
+    try {
+      await binPut('samples', { samples: DB.samples });
+    } catch (err) {
+      console.error('saveSamples error:', err);
+      toast('⚠️ Could not sync samples to server.', 'err');
+    }
+  });
+  return dbQueue.samples;
+}
+
+function saveHelp() {
+  dbQueue.help = dbQueue.help.then(async () => {
+    try {
+      await binPut('help', { helpQueries: DB.helpQueries });
+    } catch (err) {
+      console.error('saveHelp error:', err);
+      toast('⚠️ Could not sync help queries.', 'err');
+    }
+  });
+  return dbQueue.help;
+}
+
+// saveDB() is called by the dbSet shim — route each key to the right bin
+function saveDB(key) {
+  if (key === 'samples')                        return saveSamples();
+  if (key === 'helpQueries')                    return saveHelp();
+  // users, customers, counters all go to core
+  return saveCore();
 }
 
 function showLoader(msg) {
@@ -1981,7 +2061,7 @@ function dbSet(key, value) {
   else if (key === 'customerCounter') DB.customerCounter = parseInt(value) || 0;
   else if (key === 'sampleCounter')   DB.sampleCounter   = parseInt(value) || 0;
   else if (key === 'helpQueries')     DB.helpQueries     = JSON.parse(value);
-  saveDB();
+  saveDB(key);   // pass key so saveDB routes to the correct bin
 }
 
 const { jsPDF } = window.jspdf;
