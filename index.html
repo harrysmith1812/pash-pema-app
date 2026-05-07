@@ -3412,7 +3412,7 @@ function renderResultTable(){
 // ── CLOUDINARY CONFIG ──
 const CLOUDINARY_CLOUD  = 'dnaqcwgxv';
 const CLOUDINARY_PRESET = 'pash-pema-pdfs';
-const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/raw/upload`;
 
 async function handleDetailedReportUpload(event, code){
   const file = event.target.files[0];
@@ -3473,14 +3473,11 @@ function viewDetailedReport(code){
   const samples = JSON.parse(dbGet('samples')||'{}');
   const s = samples[code];
   if(!s || !s.detailedReport){ toast('No detailed report found','err'); return; }
-  // Transform the Cloudinary URL to serve the PDF inline (not as a download).
-  // Insert fl_attachment:false into the path so the browser renders the PDF
-  // instead of triggering a file download.
-  let url = s.detailedReport;
-  url = url.replace('/image/upload/', '/image/upload/fl_attachment:false/');
-  // Fallback: also handle any legacy raw-upload URLs still stored in the DB
-  url = url.replace('/raw/upload/', '/image/upload/fl_attachment:false/');
-  window.open(url, '_blank');
+  // Use Google Docs Viewer to render the PDF inline in the browser.
+  // This bypasses Cloudinary's Content-Disposition:attachment header and works
+  // as long as the Cloudinary preset is set to public (unsigned) access.
+  const encoded = encodeURIComponent(s.detailedReport);
+  window.open('https://docs.google.com/viewer?url=' + encoded + '&embedded=true', '_blank');
 }
 
 function removeDetailedReport(code){
