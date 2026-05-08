@@ -3906,24 +3906,49 @@ async function downloadPDF(code){
     doc.text('Scan to verify', qrX + qrSize/2, qrY + qrSize + 5, null, null, 'center');
   }
 
-  // ── "Click here to view detailed report" hyperlink at bottom ──
+  // ── "Click here to view Detailed Report" hyperlink at bottom ──
   const samples_check = JSON.parse(dbGet('samples')||'{}');
   if(samples_check[code] && samples_check[code].detailedResultsText){
-    // Generate the detailed report as a blob URL so the link downloads it
     const detailedBlobUrl = await generateDetailedReportBlob(code);
     if(detailedBlobUrl){
-      const linkY = 274;
-      // Background pill for the link
+      const linkY   = 271;          // vertical centre of the pill
+      const pillX   = 20;
+      const pillW   = 172;          // span nearly full width
+      const pillH   = 11;
+
+      // Teal filled rounded pill
       doc.setFillColor(0, 194, 168);
-      doc.roundedRect(20, linkY - 5, 120, 10, 2, 2, 'F');
-      // Link text
+      doc.roundedRect(pillX, linkY - 5.5, pillW, pillH, 2.5, 2.5, 'F');
+
+      // Draw a small solid right-arrow triangle (PDF-safe, no emoji)
+      const arrowX = pillX + 10;   // left side inside pill
+      const arrowCY = linkY + 0.3; // vertical centre
+      doc.setFillColor(10, 22, 40);
+      doc.triangle(
+        arrowX,      arrowCY - 2.5,   // top
+        arrowX,      arrowCY + 2.5,   // bottom
+        arrowX + 4,  arrowCY,          // tip
+        'F'
+      );
+
+      // Label text — plain ASCII only, bold, dark navy on teal
       doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(10, 22, 40);
-      doc.text('🔗  Click here to view Detailed Report', 80, linkY + 1.5, null, null, 'center');
-      // Clickable link annotation over the pill
-      doc.link(20, linkY - 5, 120, 10, { url: detailedBlobUrl });
-      // Reset text color for footer
+      const labelX = pillX + pillW / 2 + 3; // nudge right slightly to clear arrow
+      doc.text('Click here to view Detailed Report', labelX, linkY + 0.8, null, null, 'center');
+
+      // Underline the text to signal it is a hyperlink
+      const textWidth = doc.getTextWidth('Click here to view Detailed Report');
+      const ulX = labelX - textWidth / 2;
+      doc.setDrawColor(10, 22, 40);
+      doc.setLineWidth(0.35);
+      doc.line(ulX, linkY + 2.2, ulX + textWidth, linkY + 2.2);
+
+      // Invisible link annotation covering the whole pill
+      doc.link(pillX, linkY - 5.5, pillW, pillH, { url: detailedBlobUrl });
+
+      // Reset
       doc.setTextColor(150);
       doc.setFont(undefined, 'normal');
     }
