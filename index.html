@@ -2209,17 +2209,26 @@ function verifyURL(code) {
   return base + '?view=' + encodeURIComponent(code);
 }
 
+// Build the verification URL specifically for a detailed report QR code
+function detailVerifyURL(code) {
+  const base = window.location.origin + window.location.pathname;
+  return base + '?detail=' + encodeURIComponent(code);
+}
+
 // ── PUBLIC VERIFICATION VIEW ──
-// ?view=CODE → Test Report fields only (no payment)
-// ?pay=CODE  → Payment Receipt fields only (no test results)
+// ?view=CODE   → Test Report fields only (no payment)
+// ?pay=CODE    → Payment Receipt fields only (no test results)
+// ?detail=CODE → Detailed report result verification
 (function checkVerifyMode() {
-  const params  = new URLSearchParams(window.location.search);
-  const viewCode = params.get('view');
-  const payCode  = params.get('pay');
-  const code     = viewCode || payCode;
+  const params      = new URLSearchParams(window.location.search);
+  const viewCode    = params.get('view');
+  const payCode     = params.get('pay');
+  const detailCode  = params.get('detail');
+  const code        = viewCode || payCode || detailCode;
   if (!code) return;
 
-  const isPayMode = !!payCode; // true = payment receipt scan, false = test report scan
+  const isPayMode    = !!payCode;
+  const isDetailMode = !!detailCode;
 
   document.addEventListener('DOMContentLoaded', () => {
     document.body.style.background = '#0a1628';
@@ -2228,7 +2237,7 @@ function verifyURL(code) {
         <div style="width:100%;max-width:520px;">
           <div style="text-align:center;margin-bottom:28px;">
             <div style="font-size:12px;letter-spacing:3px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:8px;">PASH-PEMA LMIS</div>
-            <div style="font-size:22px;font-weight:700;color:#e8edf5;">${isPayMode ? 'Payment Verification' : 'Report Verification'}</div>
+            <div style="font-size:22px;font-weight:700;color:#e8edf5;">${isPayMode ? 'Payment Verification' : isDetailMode ? 'Detailed Report Verification' : 'Report Verification'}</div>
             <div style="font-size:13px;color:#6b82a0;margin-top:4px;">Scan verified — fetching record…</div>
           </div>
           <div id="verifyCard" style="background:#132240;border-radius:16px;padding:28px;border:1px solid rgba(0,194,168,.2);">
@@ -2310,6 +2319,50 @@ function verifyURL(code) {
 
           <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3a5070;text-align:center;">
             ✅ This receipt was issued by PASH-PEMA LMIS &nbsp;·&nbsp; Verified ${new Date().toLocaleString()}
+          </div>
+        `;
+      } else if (isDetailMode) {
+        // ── DETAILED REPORT VIEW ── shows result section from detailed report
+        function stripHtmlToText(html) {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          return tmp.innerText || tmp.textContent || '';
+        }
+        const detailText = s.detailedResultsText ? stripHtmlToText(s.detailedResultsText) : null;
+
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#00d4a0;box-shadow:0 0 8px #00d4a0;"></div>
+            <span style="font-size:11px;letter-spacing:2px;color:#00d4a0;font-family:'DM Mono',monospace;">DETAILED REPORT VERIFIED</span>
+          </div>
+
+          <div style="font-size:20px;font-weight:700;color:#e8edf5;margin-bottom:4px;">${s.name||'—'}</div>
+          <div style="font-size:12px;color:#00c2a8;font-family:'DM Mono',monospace;margin-bottom:20px;">CODE: ${code}</div>
+
+          ${row('Patient / Sample', s.name)}
+          ${cust ? row('Customer', cust.name) : ''}
+          ${row('Collection Date', s.date)}
+          ${row('Tested By', s.testedBy || 'Pending')}
+          ${row('Result Date', s.resultDate || 'Pending')}
+          ${row('Status', s.status || '—')}
+
+          ${s.result ? `
+          <div style="margin-top:16px;background:rgba(0,194,168,.08);border:1px solid rgba(0,194,168,.2);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:#00c2a8;letter-spacing:1px;margin-bottom:8px;font-weight:700;">🧪 RESULT SUMMARY</div>
+            <div style="font-size:13px;color:#e8edf5;line-height:1.6;">${s.result}</div>
+          </div>` : ''}
+
+          ${detailText ? `
+          <div style="margin-top:14px;background:rgba(0,194,168,.05);border:1px solid rgba(0,194,168,.15);border-radius:10px;padding:16px;">
+            <div style="font-size:11px;color:#00c2a8;letter-spacing:1px;margin-bottom:10px;font-weight:700;">📋 DETAILED REPORT</div>
+            <div style="font-size:12px;color:#c8d8ea;line-height:1.8;white-space:pre-wrap;max-height:420px;overflow-y:auto;">${detailText}</div>
+          </div>` : `
+          <div style="margin-top:16px;background:rgba(100,120,160,.06);border:1px solid rgba(100,120,160,.2);border-radius:10px;padding:14px;font-size:13px;color:#7a8fa8;">
+            📄 No detailed report content found for this record.
+          </div>`}
+
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.06);font-size:11px;color:#3a5070;text-align:center;">
+            ✅ This detailed report was issued by PASH-PEMA LMIS &nbsp;·&nbsp; Verified ${new Date().toLocaleString()}
           </div>
         `;
       } else {
@@ -3582,7 +3635,7 @@ async function downloadDetailedReportPDF(code){
   }
 
   const bodyText = htmlToLines(s.detailedResultsText);
-  const url   = verifyURL(code);
+  const url   = detailVerifyURL(code);
   const qrImg = await generateQRDataURL(url);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
