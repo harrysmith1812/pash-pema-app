@@ -2215,16 +2215,60 @@ function detailVerifyURL(code) {
   return base + '?detail=' + encodeURIComponent(code);
 }
 
+// Direct-download URL — opens ?dldetail=CODE which auto-generates & downloads the PDF
+function dldetailURL(code) {
+  const base = window.location.origin + window.location.pathname;
+  return base + '?dldetail=' + encodeURIComponent(code);
+}
+
 // ── PUBLIC VERIFICATION VIEW ──
-// ?view=CODE   → Test Report fields only (no payment)
-// ?pay=CODE    → Payment Receipt fields only (no test results)
-// ?detail=CODE → Detailed report result verification
+// ?view=CODE     → Test Report fields only (no payment)
+// ?pay=CODE      → Payment Receipt fields only (no test results)
+// ?detail=CODE   → Detailed report result verification screen
+// ?dldetail=CODE → Silently generate & download the Detailed Report PDF (no login/UI)
 (function checkVerifyMode() {
   const params      = new URLSearchParams(window.location.search);
   const viewCode    = params.get('view');
   const payCode     = params.get('pay');
   const detailCode  = params.get('detail');
-  const code        = viewCode || payCode || detailCode;
+  const dlCode      = params.get('dldetail');   // ← direct PDF download param
+  const code        = viewCode || payCode || detailCode || dlCode;
+
+  // ── Direct PDF download — no UI, no login required ──
+  if (dlCode) {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.style.cssText = 'margin:0;background:#0a1628;display:flex;align-items:center;justify-content:center;height:100vh;font-family:DM Sans,sans-serif;color:#e8edf5;';
+      document.body.innerHTML = `
+        <div style="text-align:center;">
+          <div style="font-size:12px;letter-spacing:3px;color:#00c2a8;font-family:monospace;margin-bottom:14px;">PASH-PEMA LMIS</div>
+          <div style="font-size:18px;font-weight:600;margin-bottom:8px;">Preparing Detailed Report…</div>
+          <div style="font-size:13px;color:#6b82a0;">Your PDF will download automatically.</div>
+          <div id="dlMsg" style="margin-top:18px;font-size:12px;color:#6b82a0;"></div>
+        </div>`;
+
+      loadDB().then(async () => {
+        const samples   = DB.samples   || {};
+        const s         = samples[dlCode];
+        const msg       = document.getElementById('dlMsg');
+
+        if (!s || !s.detailedResultsText) {
+          msg.style.color = '#ff4d6a';
+          msg.textContent = 'Error: No detailed report found for code ' + dlCode;
+          return;
+        }
+
+        try {
+          await downloadDetailedReportPDF(dlCode);
+          msg.style.color = '#00d4a0';
+          msg.textContent = 'Download started. You may close this tab.';
+        } catch(e) {
+          msg.style.color = '#ff4d6a';
+          msg.textContent = 'Failed to generate PDF: ' + e.message;
+        }
+      });
+    });
+    return; // skip rest of checkVerifyMode
+  }
   if (!code) return;
 
   const isPayMode    = !!payCode;
@@ -3912,7 +3956,7 @@ async function downloadPDF(code){
   // ── Detailed Report link section — right side, same row as QR ──
   const samples_check = JSON.parse(dbGet('samples')||'{}');
   if(samples_check[code] && samples_check[code].detailedResultsText){
-    const detailUrl = detailVerifyURL(code);
+    const detailUrl = dldetailURL(code);
 
     const boxX   = 68;
     const boxW   = 125;
