@@ -3909,54 +3909,64 @@ async function downloadPDF(code){
     doc.text('Scan to verify', qrX + qrSize/2, qrY + qrSize + 5, null, null, 'center');
   }
 
-  // ── Detailed Report button — right side, same row as QR ──
+  // ── Detailed Report link section — right side, same row as QR ──
   const samples_check = JSON.parse(dbGet('samples')||'{}');
   if(samples_check[code] && samples_check[code].detailedResultsText){
-    // Build the detailed PDF as a base64 data URI so the link is self-contained
-    // and works in any PDF viewer without expiring blob URLs
-    const detailedDataUri = await generateDetailedReportDataUri(code);
-    if(detailedDataUri){
-      const pillX  = 68;          // start right of QR + gap
-      const pillW  = 125;         // fills remaining width to right margin (68+125+17=210)
-      const pillCY = bottomY + qrSize/2;   // vertically centred with QR
-      const pillH  = 14;
-      const pillTop = pillCY - pillH/2;
+    const detailUrl = detailVerifyURL(code);
 
-      // Teal filled rounded pill
-      doc.setFillColor(0, 194, 168);
-      doc.roundedRect(pillX, pillTop, pillW, pillH, 3, 3, 'F');
+    const boxX   = 68;
+    const boxW   = 125;
+    const boxTop = bottomY - 3;
+    const boxH   = qrSize + 13;
 
-      // Arrow triangle (drawn, not emoji)
-      const arrowCX = pillX + 10;
-      const arrowCY2 = pillCY;
-      doc.setFillColor(10, 22, 40);
-      doc.triangle(
-        arrowCX - 2.5, arrowCY2 - 2.5,
-        arrowCX - 2.5, arrowCY2 + 2.5,
-        arrowCX + 2.5, arrowCY2,
-        'F'
-      );
+    // Light bordered box
+    doc.setFillColor(240, 252, 250);
+    doc.setDrawColor(0, 194, 168);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(boxX, boxTop, boxW, boxH, 3, 3, 'FD');
 
-      // Button label
-      doc.setFontSize(8.5);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(10, 22, 40);
-      const labelCX = pillX + pillW/2 + 3;
-      doc.text('Click here to view', labelCX, pillCY - 1.5, null, null, 'center');
-      doc.text('Detailed Report', labelCX, pillCY + 5.5, null, null, 'center');
+    // Header label inside box
+    doc.setFontSize(7.5);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(0, 140, 120);
+    doc.text('Detailed Test Report', boxX + boxW/2, boxTop + 7, null, null, 'center');
 
-      // Underline "Detailed Report" line
-      const tw = doc.getTextWidth('Detailed Report');
-      doc.setDrawColor(10, 22, 40);
-      doc.setLineWidth(0.3);
-      doc.line(labelCX - tw/2, pillCY + 7, labelCX + tw/2, pillCY + 7);
+    // Instruction line
+    doc.setFontSize(6.5);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(80, 100, 110);
+    doc.text('Copy the link below & paste in your browser:', boxX + boxW/2, boxTop + 14, null, null, 'center');
 
-      // Clickable annotation over the full pill
-      doc.link(pillX, pillTop, pillW, pillH, { url: detailedDataUri });
+    // URL box background
+    const urlBoxY = boxTop + 17;
+    const urlBoxH = 14;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(180, 220, 215);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(boxX + 4, urlBoxY, boxW - 8, urlBoxH, 1.5, 1.5, 'FD');
 
-      doc.setTextColor(150);
-      doc.setFont(undefined, 'normal');
-    }
+    // Print the URL — wrap if needed
+    doc.setFontSize(5.8);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 90, 180);
+    const urlLines = doc.splitTextToSize(detailUrl, boxW - 14);
+    const urlTextY = urlBoxY + 5;
+    urlLines.forEach((line, i) => {
+      doc.text(line, boxX + boxW/2, urlTextY + i * 6, null, null, 'center');
+    });
+
+    // Underline the URL text to look like a hyperlink
+    urlLines.forEach((line, i) => {
+      const lw = doc.getTextWidth(line);
+      const lx = boxX + boxW/2 - lw/2;
+      const ly = urlTextY + i * 6 + 0.8;
+      doc.setDrawColor(0, 90, 180);
+      doc.setLineWidth(0.2);
+      doc.line(lx, ly, lx + lw, ly);
+    });
+
+    doc.setTextColor(150);
+    doc.setFont(undefined, 'normal');
   }
 
   doc.setFontSize(8);
