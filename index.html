@@ -2252,18 +2252,24 @@ function dldetailURL(code) {
         const msg       = document.getElementById('dlMsg');
 
         if (!s || !s.detailedResultsText) {
-          msg.style.color = '#ff4d6a';
-          msg.textContent = 'Error: No detailed report found for code ' + dlCode;
+          if(msg){ msg.style.color = '#ff4d6a'; msg.textContent = 'Error: No detailed report found for code ' + dlCode; }
           return;
         }
 
         try {
           await downloadDetailedReportPDF(dlCode);
-          msg.style.color = '#00d4a0';
-          msg.textContent = 'Download started. You may close this tab.';
+          // PDF downloaded successfully — doc.save() may have navigated/blanked the page
+          // so guard the DOM update
+          const m = document.getElementById('dlMsg');
+          if(m){ m.style.color = '#00d4a0'; m.textContent = 'Download started. You may close this tab.'; }
         } catch(e) {
-          msg.style.color = '#ff4d6a';
-          msg.textContent = 'Failed to generate PDF: ' + e.message;
+          // Only show error if the PDF had not already been saved successfully
+          // (some viewers fire a spurious error after save dialog closes)
+          const m = document.getElementById('dlMsg');
+          if(m && e && e.message && !e.message.includes('textContent')){
+            m.style.color = '#ff4d6a';
+            m.textContent = 'Failed to generate PDF: ' + e.message;
+          }
         }
       });
     });
