@@ -645,26 +645,56 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 20px 22px;
+    padding: 0;
     margin-bottom: 14px;
     transition: border-color .2s;
+    overflow: hidden;
   }
   .hd-query-card:hover { border-color: rgba(0,194,168,.3); }
   .hd-query-card.resolved { opacity: .65; }
 
-  .hd-query-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 10px;
-  }
-  .hd-query-meta {
+  /* ── Vertical card rows ── */
+  .hd-row {
     display: flex;
     align-items: center;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
     gap: 10px;
+  }
+  .hd-row:last-child { border-bottom: none; }
+
+  /* Row 1: ID + badges + timestamp */
+  .hd-row-header {
+    background: var(--surface2);
+    justify-content: space-between;
+    padding: 10px 18px;
+  }
+  .hd-row-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
   }
+
+  /* Row 2: name */
+  .hd-row-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Row 3: contact */
+  .hd-row-contact {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,.12);
+  }
+
   .hd-query-name {
     font-size: 14px;
     font-weight: 600;
@@ -680,23 +710,35 @@
     color: var(--text-dim);
     white-space: nowrap;
   }
+
+  /* Row 4: message body */
   .hd-query-body {
     font-size: 13px;
     color: var(--text);
     line-height: 1.6;
-    margin-bottom: 14px;
-    background: var(--navy-mid);
-    border-radius: var(--radius);
-    padding: 12px 14px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
     border-left: 3px solid var(--accent-dim);
+    background: var(--navy-mid);
+    margin: 0;
   }
+
+  /* Row: admin note display */
   .hd-admin-note-row {
     display: flex;
+    flex-direction: column;
     gap: 8px;
-    align-items: flex-start;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hd-admin-note-row-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
   }
   .hd-admin-note-input {
-    flex: 1;
+    width: 100%;
     background: var(--navy-mid);
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -711,6 +753,16 @@
   }
   .hd-admin-note-input:focus { border-color: var(--accent); }
   .hd-admin-note-input::placeholder { color: var(--text-dim); }
+
+  /* Row: action buttons */
+  .hd-action-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: var(--surface2);
+    flex-wrap: wrap;
+  }
 
   .hd-existing-note {
     background: rgba(0,194,168,.07);
@@ -761,9 +813,8 @@
 
   @media (max-width: 768px) {
     .helpdesk-stat-row { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
-    .hd-query-top { flex-direction: column; }
-    .hd-admin-note-row { flex-direction: column; }
-    .hd-admin-note-row button { width: 100%; }
+    .hd-row-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .hd-action-row { flex-direction: column; align-items: stretch; }
     .hd-filter-bar { gap: 6px; }
   }
 
@@ -4701,37 +4752,52 @@ function renderHelpDesk(){
     const typeIcon    = { Question:'❓', Issue:'⚠️', Feedback:'💡', Other:'📌' }[q.type] || '📌';
     const date        = new Date(q.submittedAt).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
     const noteHtml = q.adminNote
-      ? `<div class="hd-existing-note">📝 <span><strong style="color:var(--accent);">Admin Note:</strong> ${escHtml(q.adminNote)}</span></div>`
+      ? `<div class="hd-existing-note" style="margin:0;border-radius:0;border-left:3px solid rgba(0,194,168,.4);border-right:none;border-top:none;border-bottom:1px solid var(--border);">📝 <span><strong style="color:var(--accent);">Admin Note:</strong> ${escHtml(q.adminNote)}</span></div>`
       : '';
     return `
       <div class="hd-query-card ${q.status === 'resolved' ? 'resolved' : ''}" id="hqcard_${q.id}">
-        <div class="hd-query-top">
-          <div class="hd-query-meta">
-            <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);">${q.id}</span>
+
+        <!-- Row 1: ID · badges · timestamp -->
+        <div class="hd-row hd-row-header">
+          <div class="hd-row-header-left">
+            <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);font-weight:600;">${q.id}</span>
             <span class="badge" style="background:rgba(255,255,255,.05);color:${statusColor};font-size:10px;padding:2px 10px;">${statusLabel}</span>
             <span class="badge badge-blue" style="font-size:10px;padding:2px 10px;">${typeIcon} ${q.type}</span>
-            <span class="hd-query-name">${escHtml(q.name)}</span>
           </div>
           <span class="hd-query-time">${date}</span>
         </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;">
+
+        <!-- Row 2: Name -->
+        <div class="hd-row-name">👤 ${escHtml(q.name)}</div>
+
+        <!-- Row 3: Contact details -->
+        <div class="hd-row-contact">
           <span class="hd-query-contact">✉ ${escHtml(q.email)}</span>
           ${q.phone ? `<span class="hd-query-contact">📞 ${escHtml(q.phone)}</span>` : ''}
         </div>
+
+        <!-- Row 4: Message -->
         <div class="hd-query-body">${escHtml(q.message)}</div>
+
+        <!-- Row 5: Existing note (if any) -->
         ${noteHtml}
+
+        <!-- Row 6: Admin note textarea -->
         <div class="hd-admin-note-row">
           <textarea class="hd-admin-note-input" id="hqnote_${q.id}" placeholder="Add admin note or response…" rows="2">${escHtml(q.adminNote||'')}</textarea>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <button class="btn-sm" style="font-size:11px;padding:8px 14px;white-space:nowrap;" onclick="saveHdNote('${q.id}')">💾 Save Note</button>
-            <select class="inp" style="font-size:11px;padding:6px 10px;" onchange="updateHdStatus('${q.id}',this.value)">
-              <option value="open"         ${q.status==='open'?'selected':''}>🔴 Open</option>
-              <option value="in-progress"  ${q.status==='in-progress'?'selected':''}>🟡 In Progress</option>
-              <option value="resolved"     ${q.status==='resolved'?'selected':''}>🟢 Resolved</option>
-            </select>
-            <button class="btn-danger" style="font-size:11px;padding:6px 12px;" onclick="deleteHdQuery('${q.id}')">🗑</button>
-          </div>
         </div>
+
+        <!-- Row 7: Actions -->
+        <div class="hd-action-row">
+          <button class="btn-sm" style="font-size:11px;padding:8px 14px;" onclick="saveHdNote('${q.id}')">💾 Save Note</button>
+          <select class="inp" style="font-size:11px;padding:6px 10px;flex:1;max-width:180px;" onchange="updateHdStatus('${q.id}',this.value)">
+            <option value="open"         ${q.status==='open'?'selected':''}>🔴 Open</option>
+            <option value="in-progress"  ${q.status==='in-progress'?'selected':''}>🟡 In Progress</option>
+            <option value="resolved"     ${q.status==='resolved'?'selected':''}>🟢 Resolved</option>
+          </select>
+          <button class="btn-danger" style="font-size:11px;padding:6px 14px;margin-left:auto;" onclick="deleteHdQuery('${q.id}')">🗑 Delete</button>
+        </div>
+
       </div>`;
   }).join('');
 
