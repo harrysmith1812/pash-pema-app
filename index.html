@@ -3487,7 +3487,7 @@ function show(id){
   if(id==='cust_samples')  renderCustSamples();
   if(id==='cust_receipts') renderCustReceipts();
   if(id==='cust_password') resetChangePasswordForm();
-  if(currentRole!=='admin' && currentRole!=='customer') applyReadOnly(id);
+  if(currentRole!=='admin' && currentRole!=='customer' && id!=='team_chat') applyReadOnly(id);
   // Auto-close drawer on mobile after selecting a menu item
   if(isMobile()) closeMobileMenu();
 }
