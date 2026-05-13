@@ -2404,6 +2404,53 @@
     </div>
   </div>
 
+  <!-- LOGIN LOGS (admin only) -->
+  <div id="login_logs" class="panel">
+    <div class="page-title">Login Logs</div>
+    <div class="page-sub">All user sign-in activity — IP address, location, and timestamp</div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 16px;">
+      <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+        <label class="form-label">Search User</label>
+        <input id="logSearchUser" class="form-input" placeholder="Username or role…" oninput="renderLoginLogs()">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">From Date</label>
+        <input id="logDateFrom" type="date" class="form-input" onchange="renderLoginLogs()">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">To Date</label>
+        <input id="logDateTo" type="date" class="form-input" onchange="renderLoginLogs()">
+      </div>
+      <button class="btn-secondary" onclick="clearLogFilters()" style="height:38px;">Clear</button>
+      <button class="btn-primary" onclick="exportLoginLogsExcel()" style="height:38px;">📥 Export Excel</button>
+    </div>
+
+    <div id="logSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
+
+    <div class="table-wrap">
+      <table class="data-table" id="loginLogsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>User</th>
+            <th>Role</th>
+            <th>Date &amp; Time</th>
+            <th>IP Address</th>
+            <th>Country</th>
+            <th>City</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody id="loginLogsTbody"></tbody>
+      </table>
+    </div>
+    <div id="loginLogsEmpty" style="display:none;text-align:center;padding:48px;color:var(--text-dim);">
+      <div style="font-size:36px;margin-bottom:8px;">🔐</div>
+      <div>No login records found</div>
+    </div>
+  </div>
+
   <!-- TEAM CHAT (internal staff only) -->
   <div id="team_chat" class="panel">
     <div class="chat-header">
@@ -2618,7 +2665,9 @@ const JSONBIN = {
   // Bin: helpQueries
   help:    { id: '69fc0dbc250b1311c3157d20', key: MASTER_KEY },
   // Bin: internal staff chat
-  chats:   { id: '6a043f57250b1311c3430778', key: MASTER_KEY }
+  chats:   { id: '6a043f57250b1311c3430778', key: MASTER_KEY },
+  // Bin: login logs (admin-only)
+  logs:    { id: '6a045334c0954111d8189f3b', key: MASTER_KEY }
 };
 
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
@@ -2631,13 +2680,14 @@ let DB = {
   customerCounter: 0,
   sampleCounter: 0,
   helpQueries: [],
-  chatMessages: []
+  chatMessages: [],
+  loginLogs: []
 };
 
 let dbReady = false;
 
 // Per-bin save queues so writes never race each other
-const dbQueue = { core: Promise.resolve(), samples: Promise.resolve(), help: Promise.resolve(), chats: Promise.resolve() };
+const dbQueue = { core: Promise.resolve(), samples: Promise.resolve(), help: Promise.resolve(), chats: Promise.resolve(), logs: Promise.resolve() };
 
 // ── READ a bin ──
 async function binGet(bin) {
@@ -2678,11 +2728,12 @@ async function binPut(bin, data) {
 // ── LOAD all three bins in parallel ──
 async function loadDB() {
   try {
-    const [core, sampleData, helpData, chatData] = await Promise.all([
+    const [core, sampleData, helpData, chatData, logsData] = await Promise.all([
       binGet('core'),
       binGet('samples'),
       binGet('help'),
-      binGet('chats')
+      binGet('chats'),
+      binGet('logs')
     ]);
     DB.users           = core.users           || {};
     DB.customers       = core.customers       || {};
@@ -2691,6 +2742,7 @@ async function loadDB() {
     DB.samples         = sampleData.samples   || {};
     DB.helpQueries     = helpData.helpQueries || [];
     DB.chatMessages    = chatData.messages    || [];
+    DB.loginLogs       = logsData.logs        || [];
   } catch (err) {
     console.error('loadDB error:', err);
     // Show specific error in loader so it's debuggable
@@ -2761,12 +2813,23 @@ function saveChats() {
   return dbQueue.chats;
 }
 
+function saveLogs() {
+  dbQueue.logs = dbQueue.logs.then(async () => {
+    try {
+      await binPut('logs', { logs: DB.loginLogs });
+    } catch (err) {
+      console.error('saveLogs error:', err);
+    }
+  });
+  return dbQueue.logs;
+}
+
 // saveDB() is called by the dbSet shim — route each key to the right bin
 function saveDB(key) {
   if (key === 'samples')                        return saveSamples();
   if (key === 'helpQueries')                    return saveHelp();
   if (key === 'chatMessages')                   return saveChats();
-  // users, customers, counters all go to core
+  if (key === 'loginLogs')                      return saveLogs();
   return saveCore();
 }
 
@@ -3308,6 +3371,7 @@ function login(){
     setupMenu();
     updateHelpdeskBadge();
     startSessionTimer(expiry);
+    recordLoginLog(u, currentRole, 'staff');
   } else {
     document.getElementById('loginError').textContent = 'Invalid username or password.';
   }
@@ -3357,6 +3421,7 @@ function customerLogin(){
   }
   setupMenu();
   startSessionTimer(expiry);
+  recordLoginLog(cust.name, 'customer', 'customer');
 }
 
 function labelRole(r){
@@ -3408,6 +3473,7 @@ const menuDefs = {
   export:       { label:'Export to Excel',   icon:'📥' },
   helpdesk:     { label:'Help Desk',         icon:'💬' },
   team_chat:    { label:'Team Chat',         icon:'🗨️' },
+  login_logs:   { label:'Login Logs',        icon:'🔐' },
   cust_samples:  { label:'My Samples',        icon:'🧪' },
   cust_receipts: { label:'My Receipts',       icon:'🧾' },
   cust_password: { label:'Change Password',   icon:'🔐' },
@@ -3416,7 +3482,7 @@ const menuDefs = {
 function setupMenu(){
   let items;
   if(currentRole==='admin'){
-    items = ['users','admin','customers','sample','list','result','view','receipts','accounting','export','helpdesk','team_chat'];
+    items = ['users','admin','customers','sample','list','result','view','receipts','accounting','export','helpdesk','team_chat','login_logs'];
   } else if(currentRole==='customer'){
     items = ['cust_samples','cust_receipts','cust_password'];
   } else {
@@ -3484,6 +3550,7 @@ function show(id){
   if(id==='export')        { previewExportCount(); }
   if(id==='helpdesk')      renderHelpDesk();
   if(id==='team_chat')     openTeamChat();
+  if(id==='login_logs')    renderLoginLogs();
   if(id==='cust_samples')  renderCustSamples();
   if(id==='cust_receipts') renderCustReceipts();
   if(id==='cust_password') resetChangePasswordForm();
@@ -6035,6 +6102,190 @@ document.getElementById('fpOverlay').addEventListener('click', function(e){
 });
 
 // ══ END FORGOT PASSWORD ══
+
+// ══════════════════════════════════════════
+// LOGIN LOGS — admin-only
+// ══════════════════════════════════════════
+
+// ── Record a login event (non-blocking, fires-and-forgets IP lookup) ──
+async function recordLoginLog(username, role, type) {
+  const entry = {
+    id:       Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    user:     username,
+    role:     role,
+    type:     type,           // 'staff' | 'customer'
+    ts:       Date.now(),
+    ip:       '—',
+    country:  '—',
+    city:     '—'
+  };
+
+  // Push to local DB immediately, save in background
+  DB.loginLogs = DB.loginLogs || [];
+  DB.loginLogs.push(entry);
+  saveLogs();
+
+  // Then resolve IP geo in background — update the entry and re-save
+  try {
+    const res  = await fetch('https://ipapi.co/json/');
+    const geo  = await res.json();
+    entry.ip      = geo.ip      || '—';
+    entry.country = geo.country_name || geo.country || '—';
+    entry.city    = geo.city    || '—';
+    // Replace entry in array (same object reference, but re-save to persist)
+    saveLogs();
+  } catch(e) {
+    // IP lookup failed — leave defaults, no disruption to the user
+    console.warn('IP lookup failed:', e);
+  }
+}
+
+// ── Role label helper (reuse if already defined, else define locally) ──
+function logRoleLabel(r){
+  return { admin:'Administrator', entry:'Sample Entry', result:'Result Entry', view:'View Only', customer:'Customer' }[r] || r;
+}
+
+// ── Role badge HTML for the table ──
+function logRoleBadge(role){
+  const colours = {
+    admin:    'background:rgba(255,77,106,.15);color:var(--red)',
+    entry:    'background:rgba(0,194,168,.12);color:var(--accent)',
+    result:   'background:rgba(245,200,66,.12);color:var(--yellow)',
+    view:     'background:rgba(0,212,160,.12);color:var(--green)',
+    customer: 'background:rgba(130,130,200,.15);color:#aab'
+  };
+  const style = colours[role] || 'background:var(--surface2);color:var(--text-dim)';
+  return `<span style="font-size:10px;font-weight:700;letter-spacing:.4px;padding:2px 8px;border-radius:8px;text-transform:uppercase;${style}">${logRoleLabel(role)}</span>`;
+}
+
+// ── Main render function ──
+function renderLoginLogs() {
+  const logs      = (DB.loginLogs || []).slice().reverse(); // newest first
+  const search    = (document.getElementById('logSearchUser')?.value || '').trim().toLowerCase();
+  const fromDate  = document.getElementById('logDateFrom')?.value;  // 'YYYY-MM-DD'
+  const toDate    = document.getElementById('logDateTo')?.value;
+  const tbody     = document.getElementById('loginLogsTbody');
+  const emptyEl   = document.getElementById('loginLogsEmpty');
+  const tableEl   = document.getElementById('loginLogsTable');
+  const summaryEl = document.getElementById('logSummaryBar');
+  if(!tbody) return;
+
+  // Filter
+  const filtered = logs.filter(log => {
+    if(search && !log.user.toLowerCase().includes(search) && !log.role.toLowerCase().includes(search)) return false;
+    if(fromDate || toDate) {
+      const d = new Date(log.ts);
+      const dStr = d.toISOString().slice(0,10);
+      if(fromDate && dStr < fromDate) return false;
+      if(toDate   && dStr > toDate)   return false;
+    }
+    return true;
+  });
+
+  // Summary pills
+  const total   = filtered.length;
+  const staff   = filtered.filter(l => l.type === 'staff').length;
+  const customers = filtered.filter(l => l.type === 'customer').length;
+  const uniqueUsers = new Set(filtered.map(l => l.user)).size;
+  summaryEl.innerHTML = [
+    ['Total Logins', total, 'var(--accent)'],
+    ['Staff', staff, 'var(--green)'],
+    ['Customers', customers, '#aab'],
+    ['Unique Users', uniqueUsers, 'var(--yellow)']
+  ].map(([label, val, colour]) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 16px;display:flex;flex-direction:column;gap:2px;">
+      <span style="font-size:18px;font-weight:700;color:${colour};">${val}</span>
+      <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;">${label}</span>
+    </div>
+  `).join('');
+
+  if(filtered.length === 0){
+    tableEl.style.display  = 'none';
+    emptyEl.style.display  = 'block';
+    return;
+  }
+  tableEl.style.display = '';
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = filtered.map((log, i) => {
+    const dt = new Date(log.ts);
+    const dateStr = dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    const typeBadge = log.type === 'staff'
+      ? `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(0,194,168,.1);color:var(--accent);font-weight:700;">STAFF</span>`
+      : `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(130,130,200,.1);color:#aab;font-weight:700;">CUSTOMER</span>`;
+    return `<tr>
+      <td style="color:var(--text-dim);font-size:11px;">${i + 1}</td>
+      <td style="font-weight:600;">${escHtml(log.user)}</td>
+      <td>${logRoleBadge(log.role)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${dateStr}<br><span style="color:var(--text-dim);font-size:11px;">${timeStr}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${escHtml(log.ip)}</td>
+      <td>${escHtml(log.country)}</td>
+      <td style="color:var(--text-dim);">${escHtml(log.city)}</td>
+      <td>${typeBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Clear filters ──
+function clearLogFilters(){
+  const u = document.getElementById('logSearchUser');
+  const f = document.getElementById('logDateFrom');
+  const t = document.getElementById('logDateTo');
+  if(u) u.value = '';
+  if(f) f.value = '';
+  if(t) t.value = '';
+  renderLoginLogs();
+}
+
+// ── Export login logs to Excel ──
+function exportLoginLogsExcel(){
+  const logs    = (DB.loginLogs || []).slice().reverse();
+  const search  = (document.getElementById('logSearchUser')?.value || '').trim().toLowerCase();
+  const fromDate = document.getElementById('logDateFrom')?.value;
+  const toDate   = document.getElementById('logDateTo')?.value;
+
+  const filtered = logs.filter(log => {
+    if(search && !log.user.toLowerCase().includes(search) && !log.role.toLowerCase().includes(search)) return false;
+    if(fromDate || toDate){
+      const dStr = new Date(log.ts).toISOString().slice(0,10);
+      if(fromDate && dStr < fromDate) return false;
+      if(toDate   && dStr > toDate)   return false;
+    }
+    return true;
+  });
+
+  if(!filtered.length){ toast('No records to export.', 'err'); return; }
+
+  // Build CSV
+  const headers = ['#','User','Role','Date','Time','IP Address','Country','City','Login Type'];
+  const rows = filtered.map((log, i) => {
+    const dt = new Date(log.ts);
+    return [
+      i + 1,
+      log.user,
+      logRoleLabel(log.role),
+      dt.toLocaleDateString('en-IN'),
+      dt.toLocaleTimeString('en-IN'),
+      log.ip,
+      log.country,
+      log.city,
+      log.type === 'staff' ? 'Staff' : 'Customer'
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `login_logs_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ Login logs exported!');
+}
+
+// ══ END LOGIN LOGS ══
 
 // ══════════════════════════════════════════
 // TEAM CHAT — internal staff only
