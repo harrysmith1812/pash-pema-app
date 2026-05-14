@@ -2406,48 +2406,109 @@
 
   <!-- LOGIN LOGS (admin only) -->
   <div id="login_logs" class="panel">
-    <div class="page-title">Login Logs</div>
-    <div class="page-sub">All user sign-in activity — IP address, location, and timestamp</div>
+    <div class="page-title">Access Logs</div>
+    <div class="page-sub">Login activity and all visitor / QR scan tracking — IP address, location, device and timestamp</div>
 
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 16px;">
-      <div class="form-group" style="margin:0;flex:1;min-width:160px;">
-        <label class="form-label">Search User</label>
-        <input id="logSearchUser" class="form-input" placeholder="Username or role…" oninput="renderLoginLogs()">
-      </div>
-      <div class="form-group" style="margin:0;">
-        <label class="form-label">From Date</label>
-        <input id="logDateFrom" type="date" class="form-input" onchange="renderLoginLogs()">
-      </div>
-      <div class="form-group" style="margin:0;">
-        <label class="form-label">To Date</label>
-        <input id="logDateTo" type="date" class="form-input" onchange="renderLoginLogs()">
-      </div>
-      <button class="btn-secondary" onclick="clearLogFilters()" style="height:38px;">Clear</button>
-      <button class="btn-primary" onclick="exportLoginLogsExcel()" style="height:38px;">📥 Export Excel</button>
+    <!-- Tab switcher -->
+    <div style="display:flex;gap:0;margin:18px 0 0;border-bottom:2px solid var(--border);">
+      <button id="logsTabLogin" onclick="switchLogsTab('login')"
+        style="padding:9px 22px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;transition:color .15s;">
+        🔐 Login Logs
+      </button>
+      <button id="logsTabVisitor" onclick="switchLogsTab('visitor')"
+        style="padding:9px 22px;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s;">
+        🌐 Visitor Logs
+      </button>
     </div>
 
-    <div id="logSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
-
-    <div class="table-wrap">
-      <table class="data-table" id="loginLogsTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>User</th>
-            <th>Role</th>
-            <th>Date &amp; Time</th>
-            <th>IP Address</th>
-            <th>Country</th>
-            <th>City</th>
-            <th>Type</th>
-          </tr>
-        </thead>
-        <tbody id="loginLogsTbody"></tbody>
-      </table>
+    <!-- ══ LOGIN LOGS TAB ══ -->
+    <div id="logsTabLoginPanel" style="padding-top:4px;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 16px;">
+        <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+          <label class="form-label">Search User</label>
+          <input id="logSearchUser" class="form-input" placeholder="Username or role…" oninput="renderLoginLogs()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">From Date</label>
+          <input id="logDateFrom" type="date" class="form-input" onchange="renderLoginLogs()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">To Date</label>
+          <input id="logDateTo" type="date" class="form-input" onchange="renderLoginLogs()">
+        </div>
+        <button class="btn-secondary" onclick="clearLogFilters()" style="height:38px;">Clear</button>
+        <button class="btn-primary" onclick="exportLoginLogsExcel()" style="height:38px;">📥 Export CSV</button>
+      </div>
+      <div id="logSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
+      <div class="table-wrap">
+        <table class="data-table" id="loginLogsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>User</th>
+              <th>Role</th>
+              <th>Date &amp; Time</th>
+              <th>IP Address</th>
+              <th>Country</th>
+              <th>City</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="loginLogsTbody"></tbody>
+        </table>
+      </div>
+      <div id="loginLogsEmpty" style="display:none;text-align:center;padding:48px;color:var(--text-dim);">
+        <div style="font-size:36px;margin-bottom:8px;">🔐</div>
+        <div>No login records found</div>
+      </div>
     </div>
-    <div id="loginLogsEmpty" style="display:none;text-align:center;padding:48px;color:var(--text-dim);">
-      <div style="font-size:36px;margin-bottom:8px;">🔐</div>
-      <div>No login records found</div>
+
+    <!-- ══ VISITOR LOGS TAB ══ -->
+    <div id="logsTabVisitorPanel" style="display:none;padding-top:4px;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 16px;">
+        <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+          <label class="form-label">Search (IP / Country / Page)</label>
+          <input id="visitorSearch" class="form-input" placeholder="IP, country, page…" oninput="renderVisitorLogs()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">From Date</label>
+          <input id="visitorDateFrom" type="date" class="form-input" onchange="renderVisitorLogs()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">To Date</label>
+          <input id="visitorDateTo" type="date" class="form-input" onchange="renderVisitorLogs()">
+        </div>
+        <button class="btn-secondary" onclick="clearVisitorFilters()" style="height:38px;">Clear</button>
+        <button class="btn-primary" onclick="exportVisitorLogsCSV()" style="height:38px;">📥 Export CSV</button>
+        <button class="btn-danger" onclick="clearAllVisitorLogs()" style="height:38px;font-size:12px;">🗑 Clear All</button>
+      </div>
+      <div id="visitorSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
+      <div class="table-wrap">
+        <table class="data-table" id="visitorLogsTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date &amp; Time</th>
+              <th>Page / Event</th>
+              <th>IP Address</th>
+              <th>Country</th>
+              <th>Region / City</th>
+              <th>ISP / Org</th>
+              <th>Device</th>
+              <th>Browser</th>
+              <th>OS</th>
+              <th>Screen</th>
+              <th>Language</th>
+              <th>Referrer</th>
+            </tr>
+          </thead>
+          <tbody id="visitorLogsTbody"></tbody>
+        </table>
+      </div>
+      <div id="visitorLogsEmpty" style="display:none;text-align:center;padding:48px;color:var(--text-dim);">
+        <div style="font-size:36px;margin-bottom:8px;">🌐</div>
+        <div>No visitor records yet — they appear as soon as someone opens the site or scans a QR code.</div>
+      </div>
     </div>
   </div>
 
@@ -2667,7 +2728,9 @@ const JSONBIN = {
   // Bin: internal staff chat
   chats:   { id: '6a043f57250b1311c3430778', key: MASTER_KEY },
   // Bin: login logs (admin-only)
-  logs:    { id: '6a045334c0954111d8189f3b', key: MASTER_KEY }
+  logs:    { id: '6a045334c0954111d8189f3b', key: MASTER_KEY },
+  // Bin: visitor/page-view logs (admin-only)
+  visitors:{ id: '6a045334c0954111d8189f3b', key: MASTER_KEY }
 };
 
 const JSONBIN_BASE = 'https://api.jsonbin.io/v3/b';
@@ -2681,13 +2744,14 @@ let DB = {
   sampleCounter: 0,
   helpQueries: [],
   chatMessages: [],
-  loginLogs: []
+  loginLogs: [],
+  visitorLogs: []
 };
 
 let dbReady = false;
 
 // Per-bin save queues so writes never race each other
-const dbQueue = { core: Promise.resolve(), samples: Promise.resolve(), help: Promise.resolve(), chats: Promise.resolve(), logs: Promise.resolve() };
+const dbQueue = { core: Promise.resolve(), samples: Promise.resolve(), help: Promise.resolve(), chats: Promise.resolve(), logs: Promise.resolve(), visitors: Promise.resolve() };
 
 // ── READ a bin ──
 async function binGet(bin) {
@@ -2743,6 +2807,7 @@ async function loadDB() {
     DB.helpQueries     = helpData.helpQueries || [];
     DB.chatMessages    = chatData.messages    || [];
     DB.loginLogs       = logsData.logs        || [];
+    DB.visitorLogs     = logsData.visitorLogs  || [];
   } catch (err) {
     console.error('loadDB error:', err);
     // Show specific error in loader so it's debuggable
@@ -2816,7 +2881,7 @@ function saveChats() {
 function saveLogs() {
   dbQueue.logs = dbQueue.logs.then(async () => {
     try {
-      await binPut('logs', { logs: DB.loginLogs });
+      await binPut('logs', { logs: DB.loginLogs, visitorLogs: DB.visitorLogs });
     } catch (err) {
       console.error('saveLogs error:', err);
     }
@@ -3473,7 +3538,7 @@ const menuDefs = {
   export:       { label:'Export to Excel',   icon:'📥' },
   helpdesk:     { label:'Help Desk',         icon:'💬' },
   team_chat:    { label:'Team Chat',         icon:'🗨️' },
-  login_logs:   { label:'Login Logs',        icon:'🔐' },
+  login_logs:   { label:'Access Logs',        icon:'🔐' },
   cust_samples:  { label:'My Samples',        icon:'🧪' },
   cust_receipts: { label:'My Receipts',       icon:'🧾' },
   cust_password: { label:'Change Password',   icon:'🔐' },
@@ -3550,7 +3615,7 @@ function show(id){
   if(id==='export')        { previewExportCount(); }
   if(id==='helpdesk')      renderHelpDesk();
   if(id==='team_chat')     openTeamChat();
-  if(id==='login_logs')    renderLoginLogs();
+  if(id==='login_logs')    switchLogsTab(_activeLogsTab || 'login');
   if(id==='cust_samples')  renderCustSamples();
   if(id==='cust_receipts') renderCustReceipts();
   if(id==='cust_password') resetChangePasswordForm();
@@ -6288,6 +6353,280 @@ function exportLoginLogsExcel(){
 // ══ END LOGIN LOGS ══
 
 // ══════════════════════════════════════════
+// LOG PANEL TAB SWITCHER
+// ══════════════════════════════════════════
+
+let _activeLogsTab = 'login';
+
+function switchLogsTab(tab) {
+  _activeLogsTab = tab;
+  const loginPanel   = document.getElementById('logsTabLoginPanel');
+  const visitorPanel = document.getElementById('logsTabVisitorPanel');
+  const loginBtn     = document.getElementById('logsTabLogin');
+  const visitorBtn   = document.getElementById('logsTabVisitor');
+  if (!loginPanel || !visitorPanel) return;
+
+  if (tab === 'login') {
+    loginPanel.style.display   = '';
+    visitorPanel.style.display = 'none';
+    loginBtn.style.color         = 'var(--accent)';
+    loginBtn.style.borderBottom  = '2px solid var(--accent)';
+    visitorBtn.style.color        = 'var(--text-dim)';
+    visitorBtn.style.borderBottom = '2px solid transparent';
+    renderLoginLogs();
+  } else {
+    loginPanel.style.display   = 'none';
+    visitorPanel.style.display = '';
+    visitorBtn.style.color        = 'var(--accent)';
+    visitorBtn.style.borderBottom = '2px solid var(--accent)';
+    loginBtn.style.color         = 'var(--text-dim)';
+    loginBtn.style.borderBottom  = '2px solid transparent';
+    renderVisitorLogs();
+  }
+}
+
+// ══════════════════════════════════════════
+// VISITOR LOGS — render, filter, export, clear
+// ══════════════════════════════════════════
+
+function renderVisitorLogs() {
+  const logs      = (DB.visitorLogs || []).slice().reverse(); // newest first
+  const search    = (document.getElementById('visitorSearch')?.value || '').trim().toLowerCase();
+  const fromDate  = document.getElementById('visitorDateFrom')?.value;
+  const toDate    = document.getElementById('visitorDateTo')?.value;
+  const tbody     = document.getElementById('visitorLogsTbody');
+  const emptyEl   = document.getElementById('visitorLogsEmpty');
+  const tableEl   = document.getElementById('visitorLogsTable');
+  const summaryEl = document.getElementById('visitorSummaryBar');
+  if (!tbody) return;
+
+  const filtered = logs.filter(log => {
+    if (search) {
+      const haystack = [log.ip, log.country, log.city, log.page, log.isp, log.os, log.browser, log.deviceType, log.referrer]
+        .join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    if (fromDate || toDate) {
+      const dStr = new Date(log.ts).toISOString().slice(0, 10);
+      if (fromDate && dStr < fromDate) return false;
+      if (toDate   && dStr > toDate)   return false;
+    }
+    return true;
+  });
+
+  // Summary
+  const total       = filtered.length;
+  const uniqueIPs   = new Set(filtered.map(l => l.ip).filter(ip => ip !== '—')).size;
+  const qrScans     = filtered.filter(l => l.page && l.page.startsWith('QR')).length;
+  const countries   = new Set(filtered.map(l => l.country).filter(c => c !== '—')).size;
+  const mobiles     = filtered.filter(l => l.deviceType === 'Mobile').length;
+  summaryEl.innerHTML = [
+    ['Total Visits',    total,     'var(--accent)'],
+    ['Unique IPs',      uniqueIPs, 'var(--green)'],
+    ['QR Scans',        qrScans,   'var(--gold)'],
+    ['Countries',       countries, '#b07ef0'],
+    ['Mobile Visitors', mobiles,   '#00c8dc']
+  ].map(([label, val, colour]) => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 16px;display:flex;flex-direction:column;gap:2px;">
+      <span style="font-size:18px;font-weight:700;color:${colour};">${val}</span>
+      <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;">${label}</span>
+    </div>
+  `).join('');
+
+  if (filtered.length === 0) {
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  tableEl.style.display = '';
+  emptyEl.style.display = 'none';
+
+  tbody.innerHTML = filtered.map((log, i) => {
+    const dt      = new Date(log.ts);
+    const dateStr = dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+    const timeStr = dt.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+
+    const deviceBadge = log.deviceType === 'Mobile'  ? `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(0,200,220,.12);color:#00c8dc;font-weight:700;">📱 MOBILE</span>`
+                      : log.deviceType === 'Tablet'  ? `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(176,126,240,.12);color:#b07ef0;font-weight:700;">📲 TABLET</span>`
+                      : `<span style="font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(0,194,168,.10);color:var(--accent);font-weight:700;">💻 DESKTOP</span>`;
+
+    const pageLabel = (log.page || '').startsWith('QR')
+      ? `<span style="color:var(--gold);font-weight:600;">📱 ${escHtml(log.page)}</span>`
+      : `<span style="color:var(--text-dim);">${escHtml(log.page || '—')}</span>`;
+
+    const ref = log.referrer && log.referrer !== '(direct / QR scan)'
+      ? `<span style="font-size:11px;color:var(--accent);" title="${escHtml(log.referrer)}">${escHtml(log.referrer.slice(0,40))}${log.referrer.length>40?'…':''}</span>`
+      : `<span style="color:var(--text-dim);font-size:11px;">direct / QR</span>`;
+
+    return `<tr>
+      <td style="color:var(--text-dim);font-size:11px;">${i + 1}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap;">${dateStr}<br><span style="color:var(--text-dim);font-size:11px;">${timeStr}</span></td>
+      <td style="max-width:200px;">${pageLabel}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${escHtml(log.ip)}</td>
+      <td>${escHtml(log.country)}</td>
+      <td style="color:var(--text-dim);font-size:12px;">${escHtml(log.region || '—')}<br><span style="font-size:11px;">${escHtml(log.city || '—')}</span></td>
+      <td style="color:var(--text-dim);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(log.isp || '—')}">${escHtml((log.isp || '—').slice(0,30))}</td>
+      <td>${deviceBadge}</td>
+      <td style="color:var(--text-dim);font-size:12px;">${escHtml(log.browser || '—')}</td>
+      <td style="color:var(--text-dim);font-size:12px;">${escHtml(log.os || '—')}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-dim);">${escHtml(log.screenRes || '—')}</td>
+      <td style="font-size:11px;color:var(--text-dim);">${escHtml(log.language || '—')}</td>
+      <td>${ref}</td>
+    </tr>`;
+  }).join('');
+}
+
+function clearVisitorFilters() {
+  const s = document.getElementById('visitorSearch');
+  const f = document.getElementById('visitorDateFrom');
+  const t = document.getElementById('visitorDateTo');
+  if(s) s.value = '';
+  if(f) f.value = '';
+  if(t) t.value = '';
+  renderVisitorLogs();
+}
+
+async function clearAllVisitorLogs() {
+  if (!confirm('Delete ALL visitor log entries? This cannot be undone.')) return;
+  DB.visitorLogs = [];
+  await saveLogs();
+  renderVisitorLogs();
+  toast('✅ Visitor logs cleared.');
+}
+
+function exportVisitorLogsCSV() {
+  const logs     = (DB.visitorLogs || []).slice().reverse();
+  const search   = (document.getElementById('visitorSearch')?.value || '').trim().toLowerCase();
+  const fromDate = document.getElementById('visitorDateFrom')?.value;
+  const toDate   = document.getElementById('visitorDateTo')?.value;
+
+  const filtered = logs.filter(log => {
+    if (search) {
+      const h = [log.ip, log.country, log.city, log.page, log.isp, log.os, log.browser, log.deviceType, log.referrer].join(' ').toLowerCase();
+      if (!h.includes(search)) return false;
+    }
+    if (fromDate || toDate) {
+      const dStr = new Date(log.ts).toISOString().slice(0, 10);
+      if (fromDate && dStr < fromDate) return false;
+      if (toDate   && dStr > toDate)   return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) { toast('No visitor records to export.', 'err'); return; }
+
+  const headers = ['#','Date','Time','Page / Event','IP Address','Country','Region','City','ISP / Org','Device','Browser','OS','Screen','Language','Referrer','Full URL'];
+  const rows = filtered.map((log, i) => {
+    const dt = new Date(log.ts);
+    return [
+      i + 1,
+      dt.toLocaleDateString('en-IN'),
+      dt.toLocaleTimeString('en-IN'),
+      log.page       || '',
+      log.ip         || '',
+      log.country    || '',
+      log.region     || '',
+      log.city       || '',
+      log.isp        || '',
+      log.deviceType || '',
+      log.browser    || '',
+      log.os         || '',
+      log.screenRes  || '',
+      log.language   || '',
+      log.referrer   || '',
+      log.url        || ''
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `visitor_logs_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ Visitor logs exported!');
+}
+
+// ══ END VISITOR LOGS ══
+
+// ══════════════════════════════════════════
+// VISITOR TRACKING — fires on every page load / QR scan
+// ══════════════════════════════════════════
+
+async function recordVisitorLog() {
+  // Detect page context from URL parameters
+  const params    = new URLSearchParams(window.location.search);
+  const pageParam = params.get('view')     ? 'QR Scan — Test Report (' + params.get('view') + ')'
+                  : params.get('pay')      ? 'QR Scan — Payment Receipt (' + params.get('pay') + ')'
+                  : params.get('detail')   ? 'QR Scan — Detailed Report (' + params.get('detail') + ')'
+                  : params.get('dldetail') ? 'Direct PDF Download (' + params.get('dldetail') + ')'
+                  : 'Login / Main Page';
+
+  // Browser & device detection from User-Agent
+  const ua        = navigator.userAgent;
+  const isMob     = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+  const isTablet  = /iPad|Tablet/i.test(ua) && isMob;
+  const deviceType= isTablet ? 'Tablet' : isMob ? 'Mobile' : 'Desktop';
+  const browserMatch = ua.match(/(SamsungBrowser|OPR|Opera|Edg|Edge|Chrome|Firefox|Safari)[\/\s]?([\d.]+)/i);
+  const browserName  = browserMatch ? (browserMatch[1] === 'Edg' ? 'Edge' : browserMatch[1] === 'OPR' ? 'Opera' : browserMatch[1]) : 'Unknown';
+  const os        = /Windows NT 10/i.test(ua)  ? 'Windows 10/11'
+                  : /Windows/i.test(ua)         ? 'Windows'
+                  : /Mac OS X/i.test(ua)        ? 'macOS'
+                  : /Android/i.test(ua)         ? 'Android'
+                  : /iPhone|iPod/i.test(ua)     ? 'iOS (iPhone)'
+                  : /iPad/i.test(ua)            ? 'iOS (iPad)'
+                  : /Linux/i.test(ua)           ? 'Linux'
+                  : 'Unknown';
+  const screenRes = screen.width + 'x' + screen.height;
+  const lang      = navigator.language || '—';
+  const referrer  = document.referrer ? document.referrer : '(direct / QR scan)';
+  const fullURL   = window.location.href;
+
+  const entry = {
+    id:         Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    ts:         Date.now(),
+    page:       pageParam,
+    url:        fullURL,
+    ip:         '—',
+    country:    '—',
+    region:     '—',
+    city:       '—',
+    isp:        '—',
+    deviceType: deviceType,
+    browser:    browserName,
+    os:         os,
+    screenRes:  screenRes,
+    language:   lang,
+    referrer:   referrer
+  };
+
+  // Push immediately with placeholder geo data
+  DB.visitorLogs = DB.visitorLogs || [];
+  // Cap at 2000 entries to keep bin lean — drop oldest
+  if (DB.visitorLogs.length >= 2000) DB.visitorLogs.splice(0, DB.visitorLogs.length - 1999);
+  DB.visitorLogs.push(entry);
+  saveLogs();
+
+  // Geo + ISP lookup in background — update entry once resolved
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    const geo = await res.json();
+    entry.ip      = geo.ip           || '—';
+    entry.country = geo.country_name || geo.country || '—';
+    entry.city    = geo.city         || '—';
+    entry.isp     = geo.org          || '—';
+    entry.region  = geo.region       || '—';
+    saveLogs();
+  } catch(e) {
+    console.warn('Visitor geo lookup failed:', e);
+  }
+}
+
+// ══ END VISITOR TRACKING ══
+
+// ══════════════════════════════════════════
 // TEAM CHAT — internal staff only
 // ══════════════════════════════════════════
 
@@ -6524,6 +6863,8 @@ const _origShow = show;
   await loadDB();
   const initOverlay = document.getElementById('dbInitOverlay');
   if(initOverlay) initOverlay.style.display = 'none';
+  // Track every visit / QR scan — fires for ALL visitors, logged in or not
+  recordVisitorLog();
   // Restore session if available (survives page refresh)
   restoreSession();
 })();
