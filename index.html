@@ -2424,24 +2424,24 @@
     <!-- ══ LOGIN LOGS TAB ══ -->
     <div id="logsTabLoginPanel" style="padding-top:4px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 16px;">
-        <div class="form-group" style="margin:0;flex:1;min-width:160px;">
-          <label class="form-label">Search User</label>
-          <input id="logSearchUser" class="form-input" placeholder="Username or role…" oninput="renderLoginLogs()">
+        <div class="field" style="margin:0;flex:1;min-width:160px;">
+          <label>Search User</label>
+          <input id="logSearchUser" class="inp" placeholder="Username or role…" oninput="renderLoginLogs()">
         </div>
-        <div class="form-group" style="margin:0;">
-          <label class="form-label">From Date</label>
-          <input id="logDateFrom" type="date" class="form-input" onchange="renderLoginLogs()">
+        <div class="field" style="margin:0;">
+          <label>From Date</label>
+          <input id="logDateFrom" type="date" class="inp" onchange="renderLoginLogs()">
         </div>
-        <div class="form-group" style="margin:0;">
-          <label class="form-label">To Date</label>
-          <input id="logDateTo" type="date" class="form-input" onchange="renderLoginLogs()">
+        <div class="field" style="margin:0;">
+          <label>To Date</label>
+          <input id="logDateTo" type="date" class="inp" onchange="renderLoginLogs()">
         </div>
-        <button class="btn-secondary" onclick="clearLogFilters()" style="height:38px;">Clear</button>
-        <button class="btn-primary" onclick="exportLoginLogsExcel()" style="height:38px;">📥 Export CSV</button>
+        <button class="btn-ghost" onclick="clearLogFilters()" style="height:38px;align-self:flex-end;">Clear</button>
+        <button class="btn-sm" onclick="exportLoginLogsExcel()" style="height:38px;align-self:flex-end;">📥 Export CSV</button>
       </div>
       <div id="logSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
-      <div class="table-wrap">
-        <table class="data-table" id="loginLogsTable">
+      <div class="tbl-wrap">
+        <table id="loginLogsTable">
           <thead>
             <tr>
               <th>#</th>
@@ -2466,25 +2466,25 @@
     <!-- ══ VISITOR LOGS TAB ══ -->
     <div id="logsTabVisitorPanel" style="display:none;padding-top:4px;">
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 16px;">
-        <div class="form-group" style="margin:0;flex:1;min-width:160px;">
-          <label class="form-label">Search (IP / Country / Page)</label>
-          <input id="visitorSearch" class="form-input" placeholder="IP, country, page…" oninput="renderVisitorLogs()">
+        <div class="field" style="margin:0;flex:1;min-width:160px;">
+          <label>Search (IP / Country / Page)</label>
+          <input id="visitorSearch" class="inp" placeholder="IP, country, page…" oninput="renderVisitorLogs()">
         </div>
-        <div class="form-group" style="margin:0;">
-          <label class="form-label">From Date</label>
-          <input id="visitorDateFrom" type="date" class="form-input" onchange="renderVisitorLogs()">
+        <div class="field" style="margin:0;">
+          <label>From Date</label>
+          <input id="visitorDateFrom" type="date" class="inp" onchange="renderVisitorLogs()">
         </div>
-        <div class="form-group" style="margin:0;">
-          <label class="form-label">To Date</label>
-          <input id="visitorDateTo" type="date" class="form-input" onchange="renderVisitorLogs()">
+        <div class="field" style="margin:0;">
+          <label>To Date</label>
+          <input id="visitorDateTo" type="date" class="inp" onchange="renderVisitorLogs()">
         </div>
-        <button class="btn-secondary" onclick="clearVisitorFilters()" style="height:38px;">Clear</button>
-        <button class="btn-primary" onclick="exportVisitorLogsCSV()" style="height:38px;">📥 Export CSV</button>
-        <button class="btn-danger" onclick="clearAllVisitorLogs()" style="height:38px;font-size:12px;">🗑 Clear All</button>
+        <button class="btn-ghost" onclick="clearVisitorFilters()" style="height:38px;align-self:flex-end;">Clear</button>
+        <button class="btn-sm" onclick="exportVisitorLogsCSV()" style="height:38px;align-self:flex-end;">📥 Export CSV</button>
+        <button class="btn-danger" onclick="clearAllVisitorLogs()" style="height:38px;font-size:12px;align-self:flex-end;">🗑 Clear All</button>
       </div>
       <div id="visitorSummaryBar" style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;"></div>
-      <div class="table-wrap">
-        <table class="data-table" id="visitorLogsTable">
+      <div class="tbl-wrap">
+        <table id="visitorLogsTable">
           <thead>
             <tr>
               <th>#</th>
