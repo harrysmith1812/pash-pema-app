@@ -6856,6 +6856,17 @@ const _origShow = show;
 
 // ══ END TEAM CHAT ══
 
+// ══ DISABLE RIGHT-CLICK ON LOGIN SCREEN ══
+(function(){
+  document.addEventListener('contextmenu', function(e){
+    const loginScreen = document.getElementById('loginScreen');
+    if(loginScreen && loginScreen.style.display !== 'none' && loginScreen.contains(e.target)){
+      e.preventDefault();
+      return false;
+    }
+  });
+})();
+// ══ END DISABLE RIGHT-CLICK ON LOGIN SCREEN ══
 
 (async function init(){
   showLoader('Connecting to database…');
