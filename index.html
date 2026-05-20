@@ -1479,6 +1479,10 @@
   .pw-strength-fill { height: 100%; border-radius: 2px; width: 0%; transition: width .3s, background .3s; }
   .pw-strength-label { font-size: 10px; color: var(--text-dim); margin-top: 3px; text-align: right; }
 
+  /* ── Step visibility — CRITICAL: only the active step is shown ── */
+  .fp-step { display: none; }
+  .fp-step.active { display: block; }
+
   #fpOverlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,.72);
@@ -6081,10 +6085,12 @@ function fpVerifyOtp(){
   errEl.textContent = '';
 
   if(entered.length < 5){ errEl.textContent='Please enter all 5 digits.'; return; }
+  if(!fpGeneratedOtp || !fpOtpExpiry){ errEl.textContent='No OTP was generated. Please go back and request a new one.'; return; }
   if(Date.now() > fpOtpExpiry){ errEl.textContent='OTP has expired. Please request a new one.'; return; }
   if(entered !== fpGeneratedOtp){ errEl.textContent='Incorrect OTP. Please try again.'; return; }
 
-  // Verified ✓
+  // Verified ✓ — invalidate OTP so it cannot be reused
+  fpGeneratedOtp = '';
   clearInterval(fpTimerInterval);
   fpGoStep(3);
   setTimeout(()=>document.getElementById('fpNewPass').focus(),150);
@@ -6146,13 +6152,14 @@ function fpResetPassword(){
   if(newPw.length < 6)   { errEl.textContent='Password must be at least 6 characters.'; return; }
   if(newPw !== confPw)   { errEl.textContent='Passwords do not match.'; return; }
 
-  // Save new password to customer record
-  const customers = JSON.parse(dbGet('customers')||'{}');
-  const cust = Object.values(customers).find(c=>(c.email||'').toLowerCase()===fpCurrentEmail);
-  if(!cust){ errEl.textContent='Customer record not found. Please contact support.'; return; }
+  // Save new password directly to DB (avoids JSON round-trip key mismatch)
+  const custKey = Object.keys(DB.customers).find(k =>
+    (DB.customers[k].email||'').toLowerCase() === fpCurrentEmail
+  );
+  if(!custKey){ errEl.textContent='Customer record not found. Please contact support.'; return; }
 
-  customers[cust.id].portalPassword = newPw;
-  dbSet('customers', JSON.stringify(customers));
+  DB.customers[custKey].portalPassword = newPw;
+  saveCore(); // persist to server
 
   // Invalidate OTP
   fpGeneratedOtp = '';
